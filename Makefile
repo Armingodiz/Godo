@@ -1,12 +1,14 @@
-.PHONY: help check-redis check-s3 start-tools stop-tools
+.PHONY: help check-redis check-s3 start-tools stop-tools generate-mocks test
 
 help:
 	@echo "Available commands:"
-	@echo "  check-redis    - Check Redis stream information"
-	@echo "  check-s3       - List files in S3 bucket"
-	@echo "  start-tools    - Start CLI tools (redis-cli, aws-cli)"
-	@echo "  stop-tools     - Stop CLI tools"
-	@echo "  help           - Show this help message"
+	@echo "  check-redis      - Check Redis stream information"
+	@echo "  check-s3         - List files in S3 bucket"
+	@echo "  start-tools      - Start CLI tools (redis-cli, aws-cli)"
+	@echo "  stop-tools       - Stop CLI tools"
+	@echo "  generate-mocks   - Generate mocks using Mockery"
+	@echo "  test             - Run all tests"
+	@echo "  help             - Show this help message"
 
 start-tools:
 	@echo "Starting CLI tools..."
@@ -23,4 +25,13 @@ check-redis: start-tools
 
 check-s3: start-tools
 	@echo "🗂️  Checking S3 bucket 'todo-bucket'..."
-	@docker-compose exec aws-cli aws --endpoint-url=http://localstack:4566 s3 ls s3://todo-bucket --recursive 
+	@docker-compose exec aws-cli aws --endpoint-url=http://localstack:4566 s3 ls s3://todo-bucket --recursive
+
+generate-mocks:
+	@echo "🔧 Generating mocks using Mockery..."
+	@mockery
+	@echo "✅ Mocks generated successfully!"
+
+test:
+	@echo "🧪 Running all tests..."
+	@go test ./... -v 

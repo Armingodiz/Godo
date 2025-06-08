@@ -2,79 +2,29 @@ package usecases
 
 import (
 	"context"
-	"fmt"
-	"io"
+	"strings"
 	"testing"
 	"time"
 
-	"todo-service/internal/domain/entities"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	"todo-service/internal/domain/ports"
+	"todo-service/internal/domain/ports/mocks"
 )
 
-type MockTodoRepository struct {
-	todos map[string]*entities.TodoItem
-}
-
-func NewMockTodoRepository() *MockTodoRepository {
-	return &MockTodoRepository{
-		todos: make(map[string]*entities.TodoItem),
-	}
-}
-
-func (m *MockTodoRepository) Create(ctx context.Context, todo *entities.TodoItem) error {
-	m.todos[todo.ID.String()] = todo
-	return nil
-}
-
-type MockTransactionManager struct {
-	shouldFail bool
-}
-
-func NewMockTransactionManager() *MockTransactionManager {
-	return &MockTransactionManager{}
-}
-
-func (m *MockTransactionManager) DoInTx(ctx context.Context, fn func(repo ports.TodoRepository) error) error {
-	if m.shouldFail {
-		return fmt.Errorf("transaction failed")
-	}
-
-	mockRepo := NewMockTodoRepository()
-	return fn(mockRepo)
-}
-
-type MockStreamPublisher struct {
-	publishedEvents []string
-	shouldFail      bool
-}
-
-func NewMockStreamPublisher() *MockStreamPublisher {
-	return &MockStreamPublisher{
-		publishedEvents: make([]string, 0),
-	}
-}
-
-func (m *MockStreamPublisher) PublishTodoCreated(ctx context.Context, todo *entities.TodoItem) error {
-	if m.shouldFail {
-		return fmt.Errorf("failed to publish event")
-	}
-	m.publishedEvents = append(m.publishedEvents, "todo.created")
-	return nil
-}
-
-type MockFileStorage struct{}
-
-func NewMockFileStorage() *MockFileStorage {
-	return &MockFileStorage{}
-}
-
-func (m *MockFileStorage) UploadFile(ctx context.Context, storagePath, contentType string, data io.Reader, size int64) error {
-	return nil
-}
-
 func TestCreateTodo(t *testing.T) {
-	mockTxManager := NewMockTransactionManager()
-	mockPublisher := NewMockStreamPublisher()
+	mockTxManager := mocks.NewMockTransactionManager(t)
+	mockPublisher := mocks.NewMockStreamPublisher(t)
+
+	mockTxManager.EXPECT().DoInTx(mock.Anything, mock.AnythingOfType("func(ports.TodoRepository) error")).
+		RunAndReturn(func(ctx context.Context, fn func(repo ports.TodoRepository) error) error {
+			mockRepo := mocks.NewMockTodoRepository(t)
+			mockRepo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*entities.TodoItem")).Return(nil)
+			return fn(mockRepo)
+		})
+
+	mockPublisher.EXPECT().PublishTodoCreated(mock.Anything, mock.AnythingOfType("*entities.TodoItem")).Return(nil)
 
 	useCase := NewTodoUseCase(mockTxManager, mockPublisher)
 
@@ -88,35 +38,26 @@ func TestCreateTodo(t *testing.T) {
 
 	todo, err := useCase.CreateTodo(context.Background(), req)
 
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if todo.Description != req.Description {
-		t.Errorf("Expected description %s, got %s", req.Description, todo.Description)
-	}
-
-	if !todo.DueDate.Equal(req.DueDate) {
-		t.Errorf("Expected due date %v, got %v", req.DueDate, todo.DueDate)
-	}
-
-	if todo.FileID == nil || *todo.FileID != *req.FileID {
-		t.Errorf("Expected file ID %s, got %v", *req.FileID, todo.FileID)
-	}
-
-	if len(mockPublisher.publishedEvents) != 1 {
-		t.Errorf("Expected 1 published event, got %d", len(mockPublisher.publishedEvents))
-	}
-
-	if mockPublisher.publishedEvents[0] != "todo.created" {
-		t.Errorf("Expected 'todo.created' event, got %s", mockPublisher.publishedEvents[0])
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, req.Description, todo.Description)
+	assert.True(t, todo.DueDate.Equal(req.DueDate))
+	assert.NotNil(t, todo.FileID)
+	assert.Equal(t, *req.FileID, *todo.FileID)
 }
 
 func TestCreateTodoWithRedisFailureRollback(t *testing.T) {
-	mockTxManager := NewMockTransactionManager()
-	mockPublisher := NewMockStreamPublisher()
-	mockPublisher.shouldFail = true
+	mockTxManager := mocks.NewMockTransactionManager(t)
+	mockPublisher := mocks.NewMockStreamPublisher(t)
+
+	mockTxManager.EXPECT().DoInTx(mock.Anything, mock.AnythingOfType("func(ports.TodoRepository) error")).
+		RunAndReturn(func(ctx context.Context, fn func(repo ports.TodoRepository) error) error {
+			mockRepo := mocks.NewMockTodoRepository(t)
+			mockRepo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*entities.TodoItem")).Return(nil)
+			return fn(mockRepo)
+		})
+
+	mockPublisher.EXPECT().PublishTodoCreated(mock.Anything, mock.AnythingOfType("*entities.TodoItem")).
+		Return(assert.AnError)
 
 	useCase := NewTodoUseCase(mockTxManager, mockPublisher)
 
@@ -129,19 +70,16 @@ func TestCreateTodoWithRedisFailureRollback(t *testing.T) {
 
 	_, err := useCase.CreateTodo(context.Background(), req)
 
-	if err == nil {
-		t.Fatal("Expected error when Redis publishing fails, got nil")
-	}
-
-	if len(mockPublisher.publishedEvents) != 0 {
-		t.Errorf("Expected no published events due to failure, got %d", len(mockPublisher.publishedEvents))
-	}
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create todo")
 }
 
 func TestCreateTodoWithTransactionFailure(t *testing.T) {
-	mockTxManager := NewMockTransactionManager()
-	mockTxManager.shouldFail = true
-	mockPublisher := NewMockStreamPublisher()
+	mockTxManager := mocks.NewMockTransactionManager(t)
+	mockPublisher := mocks.NewMockStreamPublisher(t)
+
+	mockTxManager.EXPECT().DoInTx(mock.Anything, mock.AnythingOfType("func(ports.TodoRepository) error")).
+		Return(assert.AnError)
 
 	useCase := NewTodoUseCase(mockTxManager, mockPublisher)
 
@@ -154,14 +92,13 @@ func TestCreateTodoWithTransactionFailure(t *testing.T) {
 
 	_, err := useCase.CreateTodo(context.Background(), req)
 
-	if err == nil {
-		t.Fatal("Expected error when transaction fails, got nil")
-	}
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create todo")
 }
 
 func TestCreateTodoWithInvalidData(t *testing.T) {
-	mockTxManager := NewMockTransactionManager()
-	mockPublisher := NewMockStreamPublisher()
+	mockTxManager := mocks.NewMockTransactionManager(t)
+	mockPublisher := mocks.NewMockStreamPublisher(t)
 
 	useCase := NewTodoUseCase(mockTxManager, mockPublisher)
 
@@ -173,52 +110,81 @@ func TestCreateTodoWithInvalidData(t *testing.T) {
 
 	_, err := useCase.CreateTodo(context.Background(), req)
 
-	if err == nil {
-		t.Fatal("Expected error for invalid todo, got nil")
-	}
-
-	expectedError := "invalid todo item: description is required"
-	if err.Error() != expectedError {
-		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
-	}
+	assert.Error(t, err)
+	assert.Equal(t, "invalid todo item: description is required", err.Error())
 }
 
 func TestUploadFile(t *testing.T) {
-	mockStorage := NewMockFileStorage()
+	mockStorage := mocks.NewMockFileStorage(t)
+
+	mockStorage.EXPECT().UploadFile(
+		mock.Anything,
+		mock.MatchedBy(func(storagePath string) bool {
+			return strings.HasPrefix(storagePath, "files/") && strings.HasSuffix(storagePath, "/test.txt")
+		}),
+		"text/plain",
+		mock.Anything,
+		int64(1024),
+	).Return(nil)
+
 	useCase := NewFileUseCase(mockStorage)
 
 	req := UploadFileRequest{
 		FileName:    "test.txt",
 		ContentType: "text/plain",
-		Data:        nil,
+		Data:        strings.NewReader("test content"),
 		Size:        1024,
 	}
 
 	response, err := useCase.UploadFile(context.Background(), req)
 
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if response.FileID == "" {
-		t.Error("Expected file ID to be returned")
-	}
+	assert.NoError(t, err)
+	assert.NotEmpty(t, response.FileID)
 }
 
 func TestUploadFileWithInvalidData(t *testing.T) {
-	mockStorage := NewMockFileStorage()
+	mockStorage := mocks.NewMockFileStorage(t)
+
 	useCase := NewFileUseCase(mockStorage)
 
 	req := UploadFileRequest{
 		FileName:    "test.exe",
 		ContentType: "application/exe",
-		Data:        nil,
+		Data:        strings.NewReader("test content"),
 		Size:        1024,
 	}
 
 	_, err := useCase.UploadFile(context.Background(), req)
 
-	if err == nil {
-		t.Fatal("Expected error for invalid file type, got nil")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "file validation failed")
+	assert.Contains(t, err.Error(), "file type .exe is not allowed")
+}
+
+func TestUploadFileWithStorageFailure(t *testing.T) {
+	mockStorage := mocks.NewMockFileStorage(t)
+
+	mockStorage.EXPECT().UploadFile(
+		mock.Anything,
+		mock.MatchedBy(func(storagePath string) bool {
+			return strings.HasPrefix(storagePath, "files/") && strings.HasSuffix(storagePath, "/test.txt")
+		}),
+		"text/plain",
+		mock.Anything,
+		int64(1024),
+	).Return(assert.AnError)
+
+	useCase := NewFileUseCase(mockStorage)
+
+	req := UploadFileRequest{
+		FileName:    "test.txt",
+		ContentType: "text/plain",
+		Data:        strings.NewReader("test content"),
+		Size:        1024,
 	}
+
+	_, err := useCase.UploadFile(context.Background(), req)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to upload file to storage")
 }
