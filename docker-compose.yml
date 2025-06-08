@@ -1,19 +1,15 @@
-version: '3.8'
-
 services:
   localstack:
     container_name: localstack
-    image: localstack/localstack:latest
+    image: localstack/localstack:3.0
     ports:
       - "4566:4566"
-      - "4510-4559:4510-4559"
     environment:
       - SERVICES=s3
       - DEBUG=1
-      - DATA_DIR=/tmp/localstack/data
-      - DOCKER_HOST=unix:///var/run/docker.sock
+      - PERSISTENCE=1
     volumes:
-      - "./localstack-data:/tmp/localstack"
+      - localstack-data:/var/lib/localstack
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       - app-network
@@ -60,7 +56,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8083:8080"
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -89,6 +85,7 @@ services:
 volumes:
   mysql-data:
   redis-data:
+  localstack-data:
 
 networks:
   app-network:

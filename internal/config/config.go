@@ -40,7 +40,7 @@ type AWSConfig struct {
 func Load() *Config {
 	return &Config{
 		App: AppConfig{
-			Port: getEnv("PORT", "8080"),
+			Port: getEnv("PORT", "8083"),
 		},
 		DB: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -56,7 +56,7 @@ func Load() *Config {
 			Password: getEnv("REDIS_PASSWORD", ""),
 		},
 		AWS: AWSConfig{
-			Endpoint: getEnv("AWS_ENDPOINT_URL", ""),
+			Endpoint: getEnv("AWS_ENDPOINT_URL", "http://localhost:4566"),
 			Region:   getEnv("AWS_REGION", "us-east-1"),
 			S3Bucket: getEnv("S3_BUCKET", "todo-bucket"),
 		},
