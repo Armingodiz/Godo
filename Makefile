@@ -1,7 +1,8 @@
-.PHONY: help check-redis check-s3 start-tools stop-tools generate-mocks test
+.PHONY: help check-redis check-s3 start-tools stop-tools generate-mocks test run
 
 help:
 	@echo "Available commands:"
+	@echo "  run              - Start the entire project (all services)"
 	@echo "  check-redis      - Check Redis stream information"
 	@echo "  check-s3         - List files in S3 bucket"
 	@echo "  start-tools      - Start CLI tools (redis-cli, aws-cli)"
@@ -9,6 +10,10 @@ help:
 	@echo "  generate-mocks   - Generate mocks using Mockery"
 	@echo "  test             - Run all tests"
 	@echo "  help             - Show this help message"
+
+run:
+	@echo "🚀 Starting the entire project..."
+	@docker-compose --profile todo up --build
 
 start-tools:
 	@echo "Starting CLI tools..."
