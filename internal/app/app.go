@@ -121,7 +121,11 @@ func initDependencies(cfg *config.Config, logger *zap.Logger) (*Dependencies, er
 	todoRepo := repositories.NewMySQLTodoRepository(db)
 	txManager := repositories.NewMySQLTransactionManager(db)
 	streamPublisher := streams.NewRedisStreamPublisher(redisClient, "todo-events")
-	fileStorage := storage.NewS3FileStorage(awsSession, cfg.AWS.S3Bucket)
+
+	fileStorage, err := storage.NewS3FileStorage(awsSession, cfg.AWS.S3Bucket)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize S3 file storage: %w", err)
+	}
 
 	todoUseCase := usecases.NewTodoUseCase(todoRepo, txManager, streamPublisher)
 	fileUseCase := usecases.NewFileUseCase(fileStorage)
@@ -131,10 +135,6 @@ func initDependencies(cfg *config.Config, logger *zap.Logger) (*Dependencies, er
 
 	if err := todoRepo.InitSchema(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to initialize todo schema: %w", err)
-	}
-
-	if err := fileStorage.EnsureBucket(context.Background()); err != nil {
-		logger.Warn("Failed to ensure S3 bucket exists", zap.Error(err))
 	}
 
 	return &Dependencies{
@@ -255,13 +255,6 @@ func setupRoutes(deps *Dependencies) *gin.Engine {
 			overallStatus = "unhealthy"
 		} else {
 			services["redis"] = "healthy"
-		}
-
-		if err := deps.FileStorage.EnsureBucket(ctx); err != nil {
-			services["s3"] = "unhealthy: " + err.Error()
-			overallStatus = "unhealthy"
-		} else {
-			services["s3"] = "healthy"
 		}
 
 		status := HealthStatus{

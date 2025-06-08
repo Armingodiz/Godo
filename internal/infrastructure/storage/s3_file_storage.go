@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -16,11 +17,20 @@ type S3FileStorage struct {
 	bucket string
 }
 
-func NewS3FileStorage(sess *session.Session, bucket string) *S3FileStorage {
-	return &S3FileStorage{
+func NewS3FileStorage(sess *session.Session, bucket string) (*S3FileStorage, error) {
+	storage := &S3FileStorage{
 		client: s3.New(sess),
 		bucket: bucket,
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := storage.EnsureBucket(ctx); err != nil {
+		return nil, fmt.Errorf("failed to ensure S3 bucket exists: %w", err)
+	}
+
+	return storage, nil
 }
 
 func (s *S3FileStorage) UploadFile(ctx context.Context, storagePath, contentType string, data io.Reader, size int64) error {

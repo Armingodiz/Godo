@@ -21,5 +21,4 @@ type StreamPublisher interface {
 
 type FileStorage interface {
 	UploadFile(ctx context.Context, storagePath, contentType string, data io.Reader, size int64) error
-	EnsureBucket(ctx context.Context) error
 }
