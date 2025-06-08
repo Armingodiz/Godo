@@ -118,7 +118,6 @@ func initDependencies(cfg *config.Config, logger *zap.Logger) (*Dependencies, er
 		return nil, fmt.Errorf("failed to initialize AWS: %w", err)
 	}
 
-	todoRepo := repositories.NewMySQLTodoRepository(db)
 	txManager := repositories.NewMySQLTransactionManager(db)
 	streamPublisher := streams.NewRedisStreamPublisher(redisClient, "todo-events")
 
@@ -133,12 +132,7 @@ func initDependencies(cfg *config.Config, logger *zap.Logger) (*Dependencies, er
 	todoHandler := handlers.NewTodoHandler(todoUseCase)
 	fileHandler := handlers.NewFileHandler(fileUseCase)
 
-	if err := todoRepo.InitSchema(context.Background()); err != nil {
-		return nil, fmt.Errorf("failed to initialize todo schema: %w", err)
-	}
-
 	return &Dependencies{
-		TodoRepo:        todoRepo,
 		TxManager:       txManager,
 		StreamPublisher: streamPublisher,
 		FileStorage:     fileStorage,
