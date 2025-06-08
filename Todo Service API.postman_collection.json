@@ -1,0 +1,915 @@
+{
+	"info": {
+		"_postman_id": "669c7093-267a-4f25-86d6-fc1a1bd9ac1e",
+		"name": "Todo Service API",
+		"description": "Comprehensive API collection for testing the refactored Todo service with health checks, todo management, and file upload capabilities",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "16946984"
+	},
+	"item": [
+		{
+			"name": "Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 503\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+									"});",
+									"",
+									"pm.test(\"Response has status field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"});",
+									"",
+									"pm.test(\"Response has timestamp\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('timestamp');",
+									"});",
+									"",
+									"pm.test(\"Response has services status\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('services');",
+									"    pm.expect(jsonData.services).to.have.property('mysql');",
+									"    pm.expect(jsonData.services).to.have.property('redis');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check the health status of the service and its dependencies (MySQL, Redis)"
+					},
+					"response": [
+						{
+							"name": "Healthy Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/health",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"health"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"status\": \"healthy\",\n    \"timestamp\": 1704067200,\n    \"services\": {\n        \"mysql\": \"healthy\",\n        \"redis\": \"healthy\"\n    }\n}"
+						},
+						{
+							"name": "Unhealthy Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/health",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"health"
+									]
+								}
+							},
+							"status": "Service Unavailable",
+							"code": 503,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"status\": \"unhealthy\",\n    \"timestamp\": 1704067200,\n    \"services\": {\n        \"mysql\": \"unhealthy: connection refused\",\n        \"redis\": \"healthy\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Readiness Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has ready status\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('ready');",
+									"});",
+									"",
+									"pm.test(\"Response has timestamp\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('timestamp');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/ready",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"ready"
+							]
+						},
+						"description": "Simple readiness check endpoint"
+					},
+					"response": [
+						{
+							"name": "Ready Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/ready",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"ready"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"status\": \"ready\",\n    \"timestamp\": 1704067200\n}"
+						}
+					]
+				}
+			],
+			"description": "Health and readiness endpoints for monitoring service status"
+		},
+		{
+			"name": "Todo Management",
+			"item": [
+				{
+					"name": "Create Todo (Basic)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.eql('Todo created successfully');",
+									"});",
+									"",
+									"pm.test(\"Response contains todo data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('description');",
+									"    pm.expect(jsonData.data).to.have.property('due_date');",
+									"    pm.expect(jsonData.data).to.have.property('created_at');",
+									"    pm.expect(jsonData.data).to.have.property('updated_at');",
+									"});",
+									"",
+									"// Store the todo ID for use in other requests",
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('todoId', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"description\": \"Complete the API documentation\",\n    \"due_date\": \"2024-12-31T23:59:59Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/{{apiVersion}}/todo",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"{{apiVersion}}",
+								"todo"
+							]
+						},
+						"description": "Create a new todo item without file attachment"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"description\": \"Complete the API documentation\",\n    \"due_date\": \"2024-12-31T23:59:59Z\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/{{apiVersion}}/todo",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"{{apiVersion}}",
+										"todo"
+									]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"message\": \"Todo created successfully\",\n    \"data\": {\n        \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n        \"description\": \"Complete the API documentation\",\n        \"due_date\": \"2024-12-31T23:59:59Z\",\n        \"file_id\": null,\n        \"created_at\": \"2024-01-01T12:00:00Z\",\n        \"updated_at\": \"2024-01-01T12:00:00Z\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Create Todo with File ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response contains todo with file_id\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('file_id');",
+									"    pm.expect(jsonData.data.file_id).to.not.be.null;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Use the file ID from the upload request if available",
+									"var fileId = pm.collectionVariables.get('uploadedFileId');",
+									"if (!fileId) {",
+									"    // Use a sample UUID if no file was uploaded",
+									"    fileId = '123e4567-e89b-12d3-a456-426614174000';",
+									"    pm.collectionVariables.set('uploadedFileId', fileId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"description\": \"Review uploaded document\",\n    \"due_date\": \"2024-12-25T18:00:00Z\",\n    \"file_id\": \"{{uploadedFileId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/{{apiVersion}}/todo",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"{{apiVersion}}",
+								"todo"
+							]
+						},
+						"description": "Create a new todo item with an associated file attachment"
+					},
+					"response": [
+						{
+							"name": "Success Response with File",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"description\": \"Review uploaded document\",\n    \"due_date\": \"2024-12-25T18:00:00Z\",\n    \"file_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/{{apiVersion}}/todo",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"{{apiVersion}}",
+										"todo"
+									]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"message\": \"Todo created successfully\",\n    \"data\": {\n        \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n        \"description\": \"Review uploaded document\",\n        \"due_date\": \"2024-12-25T18:00:00Z\",\n        \"file_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n        \"created_at\": \"2024-01-01T12:00:00Z\",\n        \"updated_at\": \"2024-01-01T12:00:00Z\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Create Todo - Invalid Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"description\": \"\",\n    \"due_date\": \"invalid-date\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/{{apiVersion}}/todo",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"{{apiVersion}}",
+								"todo"
+							]
+						},
+						"description": "Test error handling with invalid todo data"
+					},
+					"response": [
+						{
+							"name": "Validation Error",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"description\": \"\",\n    \"due_date\": \"invalid-date\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/{{apiVersion}}/todo",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"{{apiVersion}}",
+										"todo"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"error\": \"Invalid request body\",\n    \"details\": \"Key: 'CreateTodoRequest.Description' Error:Field validation for 'Description' failed on the 'required' tag\"\n}"
+						}
+					]
+				}
+			],
+			"description": "Todo management endpoints for creating and managing todo items"
+		},
+		{
+			"name": "File Management",
+			"item": [
+				{
+					"name": "Upload File (Text)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.eql('File uploaded successfully');",
+									"});",
+									"",
+									"pm.test(\"Response contains file data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.have.property('file_id');",
+									"});",
+									"",
+									"// Store the file ID for use in todo creation",
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('uploadedFileId', jsonData.data.file_id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"description": "Select a text file to upload (e.g., .txt, .doc, .pdf)",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/{{apiVersion}}/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"{{apiVersion}}",
+								"upload"
+							]
+						},
+						"description": "Upload a text file to S3 storage. Supported formats: .txt, .doc, .docx, .pdf"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": "sample.txt"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/{{apiVersion}}/upload",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"{{apiVersion}}",
+										"upload"
+									]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"message\": \"File uploaded successfully\",\n    \"data\": {\n        \"file_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Upload File (Image)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response contains file ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('file_id');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"description": "Select an image file to upload (e.g., .jpg, .png, .gif)",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/{{apiVersion}}/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"{{apiVersion}}",
+								"upload"
+							]
+						},
+						"description": "Upload an image file to S3 storage. Supported formats: .jpg, .jpeg, .png, .gif"
+					},
+					"response": [
+						{
+							"name": "Image Upload Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": "sample.jpg"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/{{apiVersion}}/upload",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"{{apiVersion}}",
+										"upload"
+									]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"message\": \"File uploaded successfully\",\n    \"data\": {\n        \"file_id\": \"456e7890-e89b-12d3-a456-426614174001\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Upload File - Invalid Type",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error).to.include('Failed to upload file');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"description": "Try uploading an unsupported file type (e.g., .exe, .bat, .sh)",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/{{apiVersion}}/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"{{apiVersion}}",
+								"upload"
+							]
+						},
+						"description": "Test error handling with unsupported file types"
+					},
+					"response": [
+						{
+							"name": "Invalid File Type Error",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": "malicious.exe"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/{{apiVersion}}/upload",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"{{apiVersion}}",
+										"upload"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"error\": \"Failed to upload file\",\n    \"details\": \"file validation failed: file type .exe is not allowed\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Upload File - Too Large",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains size error\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.details).to.include('file size exceeds maximum');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"description": "Try uploading a file larger than 10MB",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/{{apiVersion}}/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"{{apiVersion}}",
+								"upload"
+							]
+						},
+						"description": "Test error handling with files exceeding the 10MB size limit"
+					},
+					"response": [
+						{
+							"name": "File Too Large Error",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": "large_file.pdf"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/{{apiVersion}}/upload",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"{{apiVersion}}",
+										"upload"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"error\": \"Failed to upload file\",\n    \"details\": \"file validation failed: file size exceeds maximum allowed size of 10485760 bytes\"\n}"
+						}
+					]
+				}
+			],
+			"description": "File upload endpoints for managing file attachments"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"console.log('Running request to: ' + pm.request.url);",
+					"",
+					"// Set timestamp for requests that might need it",
+					"pm.collectionVariables.set('timestamp', new Date().toISOString());"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"pm.test(\"Response time is less than 5000ms\", function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});",
+					"",
+					"pm.test(\"Response has Content-Type header\", function () {",
+					"    pm.expect(pm.response.headers.get('Content-Type')).to.exist;",
+					"});"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "apiVersion",
+			"value": "v1",
+			"type": "string"
+		},
+		{
+			"key": "timestamp",
+			"value": ""
+		},
+		{
+			"key": "todoId",
+			"value": ""
+		},
+		{
+			"key": "uploadedFileId",
+			"value": ""
+		}
+	]
+}
