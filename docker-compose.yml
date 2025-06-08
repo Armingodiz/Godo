@@ -50,6 +50,32 @@ services:
       timeout: 10s
       retries: 5
 
+  redis-cli:
+    container_name: redis-cli
+    image: redis:7-alpine
+    networks:
+      - app-network
+    depends_on:
+      - redis
+    profiles:
+      - tools
+    entrypoint: ["sleep", "infinity"]
+
+  aws-cli:
+    container_name: aws-cli
+    image: amazon/aws-cli:latest
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    networks:
+      - app-network
+    depends_on:
+      - localstack
+    profiles:
+      - tools
+    entrypoint: ["sleep", "infinity"]
+
   todo-service:
     container_name: todo-service
     build:
