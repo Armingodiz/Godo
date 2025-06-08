@@ -1,4 +1,4 @@
-.PHONY: help check-redis check-s3 start-tools stop-tools generate-mocks test run
+.PHONY: help check-redis check-s3 start-tools stop-tools generate-mocks test run benchmark cleanup-test-data
 
 help:
 	@echo "Available commands:"
@@ -9,6 +9,8 @@ help:
 	@echo "  stop-tools       - Stop CLI tools"
 	@echo "  generate-mocks   - Generate mocks using Mockery"
 	@echo "  test             - Run all tests"
+	@echo "  benchmark        - Run all benchmarks"
+	@echo "  cleanup-test-data - Clean up all test data from MySQL, S3, and Redis"
 	@echo "  help             - Show this help message"
 
 run:
@@ -39,4 +41,8 @@ generate-mocks:
 
 test:
 	@echo "🧪 Running all tests..."
-	@go test ./... -v 
+	@go test ./... -v
+
+benchmark:
+	@echo "📊 Running all benchmarks..."
+	@go test ./benchmarks -bench=. -benchmem -v
