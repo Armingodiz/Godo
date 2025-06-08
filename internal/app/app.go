@@ -127,7 +127,7 @@ func initDependencies(cfg *config.Config, logger *zap.Logger) (*Dependencies, er
 		return nil, fmt.Errorf("failed to initialize S3 file storage: %w", err)
 	}
 
-	todoUseCase := usecases.NewTodoUseCase(todoRepo, txManager, streamPublisher)
+	todoUseCase := usecases.NewTodoUseCase(txManager, streamPublisher)
 	fileUseCase := usecases.NewFileUseCase(fileStorage)
 
 	todoHandler := handlers.NewTodoHandler(todoUseCase)

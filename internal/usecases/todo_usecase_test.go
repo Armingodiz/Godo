@@ -2,7 +2,7 @@ package usecases
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -31,19 +31,16 @@ type MockTransactionManager struct {
 }
 
 func NewMockTransactionManager() *MockTransactionManager {
-	return &MockTransactionManager{
-		shouldFail: false,
-	}
+	return &MockTransactionManager{}
 }
 
 func (m *MockTransactionManager) DoInTx(ctx context.Context, fn func(repo ports.TodoRepository) error) error {
 	if m.shouldFail {
-		return errors.New("transaction failed")
+		return fmt.Errorf("transaction failed")
 	}
 
-	// Create a mock repository for the transaction
-	txRepo := NewMockTodoRepository()
-	return fn(txRepo)
+	mockRepo := NewMockTodoRepository()
+	return fn(mockRepo)
 }
 
 type MockStreamPublisher struct {
@@ -54,13 +51,12 @@ type MockStreamPublisher struct {
 func NewMockStreamPublisher() *MockStreamPublisher {
 	return &MockStreamPublisher{
 		publishedEvents: make([]string, 0),
-		shouldFail:      false,
 	}
 }
 
 func (m *MockStreamPublisher) PublishTodoCreated(ctx context.Context, todo *entities.TodoItem) error {
 	if m.shouldFail {
-		return errors.New("redis connection failed")
+		return fmt.Errorf("failed to publish event")
 	}
 	m.publishedEvents = append(m.publishedEvents, "todo.created")
 	return nil
@@ -76,16 +72,11 @@ func (m *MockFileStorage) UploadFile(ctx context.Context, storagePath, contentTy
 	return nil
 }
 
-func (m *MockFileStorage) EnsureBucket(ctx context.Context) error {
-	return nil
-}
-
 func TestCreateTodo(t *testing.T) {
-	mockRepo := NewMockTodoRepository()
 	mockTxManager := NewMockTransactionManager()
 	mockPublisher := NewMockStreamPublisher()
 
-	useCase := NewTodoUseCase(mockRepo, mockTxManager, mockPublisher)
+	useCase := NewTodoUseCase(mockTxManager, mockPublisher)
 
 	dueDate := time.Now().Add(24 * time.Hour)
 	fileID := "test-file-id"
@@ -123,12 +114,11 @@ func TestCreateTodo(t *testing.T) {
 }
 
 func TestCreateTodoWithRedisFailureRollback(t *testing.T) {
-	mockRepo := NewMockTodoRepository()
 	mockTxManager := NewMockTransactionManager()
 	mockPublisher := NewMockStreamPublisher()
 	mockPublisher.shouldFail = true
 
-	useCase := NewTodoUseCase(mockRepo, mockTxManager, mockPublisher)
+	useCase := NewTodoUseCase(mockTxManager, mockPublisher)
 
 	dueDate := time.Now().Add(24 * time.Hour)
 	req := CreateTodoRequest{
@@ -149,12 +139,11 @@ func TestCreateTodoWithRedisFailureRollback(t *testing.T) {
 }
 
 func TestCreateTodoWithTransactionFailure(t *testing.T) {
-	mockRepo := NewMockTodoRepository()
 	mockTxManager := NewMockTransactionManager()
 	mockTxManager.shouldFail = true
 	mockPublisher := NewMockStreamPublisher()
 
-	useCase := NewTodoUseCase(mockRepo, mockTxManager, mockPublisher)
+	useCase := NewTodoUseCase(mockTxManager, mockPublisher)
 
 	dueDate := time.Now().Add(24 * time.Hour)
 	req := CreateTodoRequest{
@@ -168,18 +157,13 @@ func TestCreateTodoWithTransactionFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error when transaction fails, got nil")
 	}
-
-	if len(mockRepo.todos) != 0 {
-		t.Errorf("Expected no todos to be saved when transaction fails, but found %d todos", len(mockRepo.todos))
-	}
 }
 
 func TestCreateTodoWithInvalidData(t *testing.T) {
-	mockRepo := NewMockTodoRepository()
 	mockTxManager := NewMockTransactionManager()
 	mockPublisher := NewMockStreamPublisher()
 
-	useCase := NewTodoUseCase(mockRepo, mockTxManager, mockPublisher)
+	useCase := NewTodoUseCase(mockTxManager, mockPublisher)
 
 	req := CreateTodoRequest{
 		Description: "",

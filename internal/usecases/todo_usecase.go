@@ -10,18 +10,15 @@ import (
 )
 
 type TodoUseCase struct {
-	todoRepo        ports.TodoRepository
 	txManager       ports.TransactionManager
 	streamPublisher ports.StreamPublisher
 }
 
 func NewTodoUseCase(
-	todoRepo ports.TodoRepository,
 	txManager ports.TransactionManager,
 	streamPublisher ports.StreamPublisher,
 ) *TodoUseCase {
 	return &TodoUseCase{
-		todoRepo:        todoRepo,
 		txManager:       txManager,
 		streamPublisher: streamPublisher,
 	}
