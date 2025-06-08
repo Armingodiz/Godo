@@ -76,6 +76,10 @@ func (m *MockFileStorage) UploadFile(ctx context.Context, storagePath, contentTy
 	return nil
 }
 
+func (m *MockFileStorage) EnsureBucket(ctx context.Context) error {
+	return nil
+}
+
 func TestCreateTodo(t *testing.T) {
 	mockRepo := NewMockTodoRepository()
 	mockTxManager := NewMockTransactionManager()
