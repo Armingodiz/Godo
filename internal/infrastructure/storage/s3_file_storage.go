@@ -26,7 +26,7 @@ func NewS3FileStorage(sess *session.Session, bucket string) (*S3FileStorage, err
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := storage.EnsureBucket(ctx); err != nil {
+	if err := storage.ensureBucket(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ensure S3 bucket exists: %w", err)
 	}
 
@@ -56,7 +56,7 @@ func (s *S3FileStorage) UploadFile(ctx context.Context, storagePath, contentType
 	return nil
 }
 
-func (s *S3FileStorage) EnsureBucket(ctx context.Context) error {
+func (s *S3FileStorage) ensureBucket(ctx context.Context) error {
 	_, err := s.client.HeadBucketWithContext(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(s.bucket),
 	})
